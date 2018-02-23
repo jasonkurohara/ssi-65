@@ -70,8 +70,9 @@ void setup() {
 
   #ifdef DEBUG
   Serial.begin(9600);
-  while (!Serial) {
+  for(int i = 0; i < SERIAL_TIMEOUT && !Serial; i++) {
     continue;
+    delay(1000);
   }
   #endif
 
@@ -98,80 +99,35 @@ void setup() {
 
   // Data column headers. 
   dataFile.print("Time(ms), Pressure(Pa), Alt(m), AscentRate(m/s), TempIn(C), ");
-  dataFile.println("GPSLat, GPSLong, GPSAge, GPSSats, RBSigalQuality");
+  dataFile.println("GPSLat, GPSLong, GPSAlt, GPSSats");
 
-  // RockBlock
-  IridiumSerial.begin(19200);
-  DEBUG_PRINTLN("Starting rockblock serial");
-  int err = modem.begin();
-  int signalQuality = -1;
-  DEBUG_PRINTLN(modem.getSignalQuality(signalQuality));
-  if (err != ISBD_SUCCESS) {
-    DEBUG_PRINT("Begin failed: error ");
-    DEBUG_PRINTLN(err);
-    if (err == ISBD_NO_MODEM_DETECTED) DEBUG_PRINTLN("No modem detected: check wiring.");
-    flashLED();
+  // RockBlock Setup (Yikes)
+  if(ROCKBLOCK_ENABLED) {
+    IridiumSerial.begin(19200);
+    DEBUG_PRINTLN("Starting rockblock serial");
+    int err = modem.begin();
+    int signalQuality = -1;
+    DEBUG_PRINTLN(modem.getSignalQuality(signalQuality));
+    if (err != ISBD_SUCCESS) {
+      DEBUG_PRINT("Begin failed: error ");
+      DEBUG_PRINTLN(err);
+      if (err == ISBD_NO_MODEM_DETECTED) DEBUG_PRINTLN("No modem detected: check wiring.");
+    }
   }
 }
 
 void loop() {
   long loopTime = millis();
 
-//  if(firstSend) {
-//    firstSend = false;
-//    DEBUG_PRINTLN("Transmiting to ROCKBlock");
-//    char buf [200];
-//    modem.sendSBDText(buf);
-//    lastTransmit = loopTime;
-//  }
-  
-  // Receive RockBlock Command as two bytes: command (char), and data (byte)
-  uint8_t buffer[2];
-  size_t bufferSize = sizeof(buffer);
-  DEBUG_PRINTLN("Receiving RockBlock Commands.");
-  modem.sendReceiveSBDText(NULL, buffer, bufferSize);
-  DEBUG_PRINTLN("Turns it it doesn't block.");
-
-  //cut down from balloon
-  if (buffer[0] == 't') {
-    DEBUG_PRINTLN("Top cutdown command received");
-    releaseTop = true;
-    refTop = millis() - startTime;
-    if(releaseTop){
-      digitalWrite(WIRE_TOP, HIGH);            
-    } 
-  }
-  
-  //payload release
-  if (buffer[0] == 'b') {
-    DEBUG_PRINTLN("Bottom cutdown command received");
-    releaseBottom = true;
-    refBottom = millis() - startTime;
-    if(releaseBottom){
-      digitalWrite(WIRE_BOTTOM, HIGH);            
-    }
-  }
-
-  // Turns off wires after delayTime + refTop/refBottom
-  if ((millis() - refTop) > delayTime * 1000){
-     digitalWrite(WIRE_TOP, LOW);     
-     releaseTop = false;
-  }      
-  if ((millis() - refBottom) > delayTime * 1000){
-     digitalWrite(WIRE_TOP, LOW);     
-     releaseBottom = false;
-  }
-  if(!releaseTop && !releaseBottom){       
-    digitalWrite(WIRE_TOP, LOW);
-    digitalWrite(WIRE_BOTTOM, LOW);
-  } 
-
-  if (loopTime - lastTransmit > ROCKBLOCK_TRANSMIT_TIME) {
+  if (ROCKBLOCK_ENABLED && (loopTime - lastTransmit > ROCKBLOCK_TRANSMIT_TIME)) {
     DEBUG_PRINTLN("Transmiting to ROCKBlock");
     char buf [200];
     dataStringBuffer.toCharArray(buf, sizeof(buf));
     modem.sendSBDText(buf);
     lastTransmit = loopTime;
+  }
+  if (!ROCKBLOCK_ENABLED) {
+    readAndWrite();
   }
 }
 
@@ -238,16 +194,7 @@ String readSensors() {
   return dataString;     
 }
 
-void flashLED() {
-  while (true) {
-    digitalWrite(LED_PIN, HIGH);
-    delay(500);
-    digitalWrite(LED_PIN, LOW);
-    delay(500);
-  }
-}
-
-bool ISBDCallback() {
+bool readAndWrite() {
   String dataString = readSensors();
   long loopTime = millis();
 
@@ -266,4 +213,8 @@ bool ISBDCallback() {
   
   delay(50);
   return true;
+}
+
+bool ISBDCallback() {
+  return readAndWrite();
 }
