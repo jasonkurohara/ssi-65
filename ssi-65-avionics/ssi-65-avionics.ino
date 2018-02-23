@@ -1,9 +1,10 @@
-/*  Avionics program for SSI-65 NETFLIX LAUNCH
+/*  Avionics for SSI-65 NETFLIX LAUNCH
+ *   
+ *   Jason Kurohara, Jonathan Zwiebel, Raul Dagir, ...
 */
 
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
-// #include <Adafruit_BNO055.h>
 #include <Adafruit_MAX31855.h>
 #include <IridiumSBD.h>
 #include <TinyGPS++.h>
@@ -31,23 +32,20 @@ long refBottom; // Time difference between 'b' command and start of program
 #define ROCKBLOCK_TRANSMIT_TIME 300000 // 5 Minutes
 #define BAROMETER_MEASURMENT_INTERVAL 10000 // 10 Seconds
 
+// Environemental Parameters
+#define LAUNCH_SITE_PRESSURE 1014.562
+
 // SPI Ports
 #define SCK_PIN 13
 #define SD_READER_CS 10
 #define THERMOCOUPLE_CS 15
 
-// Environemental Parameters
-#define LAUNCH_SITE_PRESSURE 1014.562
-
 // SD Card Reader (SPI)
 File dataFile;
 long lastFlush;
 
-// Thermocouple (SPI) | Exterior Temperature
-Adafruit_MAX31855 thermocouple(THERMOCOUPLE_CS);
-
 // BMP280 (I2C) | Pressure, Internal Temperature
-Adafruit_BMP280 bmp(15, 11, 12, 13);
+Adafruit_BMP280 bmp;
 long lastAscentTime;             // Time of last ascent rate calculation
 double lastAlt;                 // Last altitude, for calculation
 double ascentRate;              // Last calculated rate, to fill forward in logging
@@ -109,8 +107,6 @@ void setup() {
   dataFile = SD.open("datalog.txt", FILE_WRITE);
   DEBUG_PRINTLN("Card initialized.");
 
-  // BMP280
-  pinMode(15. OUTPUT);
   if (!bmp.begin()) {
     DEBUG_PRINTLN("Could not find a valid BMP280 sensor, check wiring!");
     flashLED();
@@ -119,21 +115,12 @@ void setup() {
   ascentRate = 0;
   lastAscentTime = millis();
 
-  // BNO055
-//  if (!bno.begin()) {
-//    DEBUG_PRINTLN("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
-//    //flashLED(); // TODO: uncomment
-//  }
-//  bno.setExtCrystalUse(true); // TODO figure this out
-
   // GPS
   Serial1.begin(9600);
 
-  pinMode(THERMOCOUPLE_CS, OUTPUT);
-
-  // Data column headers. Temporary.
-  dataFile.print("Time(ms), Pressure(Pa), Alt(m), AscentRate(m/s), TempIn(C), OrientationX(deg), y(deg) , z(deg), ");
-  dataFile.println("TempOut(C), GPSLat, GPSLong, GPSAge, GPSSats, RBSigalQuality");
+  // Data column headers. 
+  dataFile.print("Time(ms), Pressure(Pa), Alt(m), AscentRate(m/s), TempIn(C), ");
+  dataFile.println("GPSLat, GPSLong, GPSAge, GPSSats, RBSigalQuality");
 
   // RockBlock
   IridiumSerial.begin(19200);
@@ -186,16 +173,6 @@ void loop() {
       digitalWrite(WIRE_BOTTOM, HIGH);            
     }
   }
-//    
-//  } else if (buffer[0] == 'p') { // camera pitch
-//    // TODO pass on second byte to arduino
-//    DEBUG_PRINT("Camera pitch command received. Value: ");
-//    DEBUG_PRINTLN(buffer[1]);
-//  } else if (buffer[0] == 'a') { // camera azimuth angle
-//    // TODO pass on second byte
-//    DEBUG_PRINT("Camera azimuth command received. Value: ");
-//    DEBUG_PRINTLN(buffer[1]);
-//  }
 
   // Turns off wires after delayTime + refTop/refBottom
   if ((millis() - refTop) > delayTime * 1000){
@@ -243,26 +220,14 @@ String readSensors() {
   }
   dataString += String(pressure) + ", " + String(alt) + ", ";
   dataString += String(ascentRate) + ", " + String(tempIn) + ", ";
+  DEBUG_PRINT("Pressure: ");
   DEBUG_PRINTLN(pressure);
+  DEBUG_PRINT("Altitude: ");
   DEBUG_PRINTLN(alt);
+  DEBUG_PRINT("Ascent Rate: ");
   DEBUG_PRINTLN(ascentRate);
+  DEBUG_PRINT("Inside Temperature: ");
   DEBUG_PRINTLN(tempIn);
-
-  // BNO055 (IMU) Input
-//  DEBUG_PRINTLN("BNO055 Stuff");
-//  sensors_event_t event;
-//  bno.getEvent(&event);
-//  dataString += (String)event.orientation.x + ", " + (String)event.orientation.y + ", ";
-//  dataString += (String)event.orientation.z + ", ";
-//  DEBUG_PRINTLN(event.orientation.x);
-//  DEBUG_PRINTLN(event.orientation.y);
-//  DEBUG_PRINTLN(event.orientation.z);
-
-  // MAX31855 (Thermocouple) Input
-  DEBUG_PRINTLN("MAX31855 Stuff");
-  double temperature = thermocouple.readCelsius(); // celsius
-  dataString += String(temperature) + ", ";
-  DEBUG_PRINTLN(temperature);
 
   // GPS Input
   DEBUG_PRINTLN("GPS Stuff");
@@ -280,9 +245,13 @@ String readSensors() {
 
   dataString += String(f_lat) + ", " + String(f_long) + ", ";
   dataString += String(f_age) + ", " + String(sats) + ", ";
+  DEBUG_PRINT("GPS Lat: ");
   DEBUG_PRINTLN(f_lat);
+  DEBUG_PRINT("GPS Long: ");
   DEBUG_PRINTLN(f_long);
+  DEBUG_PRINT("GPS Age: ");
   DEBUG_PRINTLN(f_age);
+  DEBUG_PRINT("GPS Sats: ");
   DEBUG_PRINTLN(sats);
   DEBUG_PRINTLN("");
 
