@@ -140,11 +140,11 @@ String readSensors() {
   // Timing
   long loopTime = millis();
   DEBUG_PRINTLN("Loop Time ");
-  DEBUG_PRINTLN(loopTime);
+  DEBUG_PRINT(loopTime);
   dataString += String(loopTime) + ", ";
 
   // BMP280 (Barometer + Thermometer) Input
-  DEBUG_PRINTLN("BMP280 stuff");
+  DEBUG_PRINTLN("BMP280 Data");
   double tempIn = bmp.readTemperature();
   double pressure = bmp.readPressure();
   double alt = bmp.readAltitude(LAUNCH_SITE_PRESSURE); // avg sea level pressure for hollister for past month
@@ -165,7 +165,7 @@ String readSensors() {
   DEBUG_PRINTLN(tempIn);
 
   // GPS Input
-  DEBUG_PRINTLN("GPS Stuff");
+  DEBUG_PRINTLN("GPS Data");
   
   while (Serial1.available()) {
     char c = Serial1.read();
