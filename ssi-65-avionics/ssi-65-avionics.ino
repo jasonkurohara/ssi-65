@@ -117,18 +117,23 @@ void setup() {
 }
 
 void loop() {
+ // Serial.print("Check1");
   long loopTime = millis();
 
   if (ROCKBLOCK_ENABLED && (loopTime - lastTransmit > ROCKBLOCK_TRANSMIT_TIME)) {
+   // Serial.print("Check2");
     DEBUG_PRINTLN("Transmiting to ROCKBlock");
     char buf [200];
     dataStringBuffer.toCharArray(buf, sizeof(buf));
     modem.sendSBDText(buf);
     lastTransmit = loopTime;
   }
+  
   if (!ROCKBLOCK_ENABLED) {
+    Serial.println('y');
     readAndWrite();
   }
+  Serial.println("Check3");
 }
 
 // Reads from all of the sensors and outputs the data string
@@ -216,5 +221,11 @@ bool readAndWrite() {
 }
 
 bool ISBDCallback() {
-  return readAndWrite();
+  Serial.println("isbd start");
+  if(!readAndWrite()) {
+    Serial.println("Read and write returned false");
+    return false;
+  }
+  return true;
+  Serial.println("isbd end");
 }

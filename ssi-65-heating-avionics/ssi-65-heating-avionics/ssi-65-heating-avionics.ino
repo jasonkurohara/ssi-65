@@ -1,5 +1,5 @@
 /*
- * Heating Avionics for Netflix Launch
+ * Heating Avionics for Netflix Launch SSI - 65
  * 
  */
 #include <Wire.h>
@@ -15,6 +15,15 @@
 Adafruit_BMP280 bmp; // I2C
 //Adafruit_BMP280 bmp(BMP_CS); // hardware SPI
 //Adafruit_BMP280 bmp(BMP_CS, BMP_MOSI, BMP_MISO,  BMP_SCK);
+
+#define DEBUG // comment out to turn off debugging
+#ifdef DEBUG
+#define DEBUG_PRINT(x)  Serial.print (String(x))
+#define DEBUG_PRINTLN(x)  Serial.println (String(x))
+#else
+#define DEBUG_PRINT(x)
+#define DEBUG_PRINTLN(x)
+#endif
 
 int heat = 0;
 bool heaterOn = false;
@@ -39,16 +48,14 @@ heaterOn = true;
 }
 
 void loop() {
-
- // put your main code here, to run repeatedly:
-double tempIn = bmp.readTemperature();
-heat = tempIn;
-Serial.print("Temperature: ");
- Serial.println(tempIn);
- Serial.print("Heater state: ");
- Serial.println(heaterOn);
-
-//checking if it's below upperthreshold
+  double tempIn = bmp.readTemperature();
+  heat = tempIn;
+  Serial.print("Temperature: ");
+  Serial.println(tempIn);
+  Serial.print("Heater state: ");
+  Serial.println(heaterOn);
+  
+  //checking if it's below upperthreshold
  if (heat > upper_threshold && heaterOn == 1) {
      digitalWrite(heater, LOW);
      heaterOn = false;
@@ -59,6 +66,5 @@ Serial.print("Temperature: ");
      digitalWrite(heater, HIGH);
      heaterOn = true;
      Serial.println("heater on");
-
    }
 }
