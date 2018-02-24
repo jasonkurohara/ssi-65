@@ -1,6 +1,6 @@
 /*  Avionics for SSI-65 NETFLIX LAUNCH
- *   
- *   Jason Kurohara, Jonathan Zwiebel, Raul Dagir, ...
+
+     Jason Kurohara, Jonathan Zwiebel, Raul Dagir, ...
 */
 
 #include <Adafruit_Sensor.h>
@@ -9,12 +9,12 @@
 #include <TinyGPS++.h>
 #include <SD.h>
 #include <SPI.h>
-#include <Wire.h> 
+#include <Wire.h>
 
 #define DEBUG // comment out to turn off debugging
 #ifdef DEBUG
 #define DEBUG_PRINT(x)  Serial.print (String(x))
-#define DEBUG_PRINTLN(x)  Serial.println (String(x))
+#define DEBUG_PRINTLN(x)  Serial.println (String(x))  
 #else
 #define DEBUG_PRINT(x)
 #define DEBUG_PRINTLN(x)
@@ -22,7 +22,7 @@
 
 // System Parameters
 #define SERIAL_TIMEOUT 60
-#define ROCKBLOCK_ENABLED true
+#define ROCKBLOCK_ENABLED false
 
 // Environemental Parameters
 #define LAUNCH_SITE_PRESSURE 1014.562
@@ -40,7 +40,7 @@ long startTime;
 long refTop; //Time difference between 't' command and start of program
 long refBottom; // Time difference between 'b' command and start of program
 #define SD_CARD_FLUSH_TIME 10000 // 10 Seconds
-#define ROCKBLOCK_TRANSMIT_TIME 300000 // 5 Minutes
+#define ROCKBLOCK_TRANSMIT_TIME 180000 // 5 Minutes
 #define BAROMETER_MEASURMENT_INTERVAL 10000 // 10 Seconds
 
 // SD Card Reader (SPI)
@@ -68,13 +68,13 @@ void setup() {
   lastFlush = 0;
   lastTransmit = 0;
 
-  #ifdef DEBUG
+#ifdef DEBUG
   Serial.begin(9600);
-  for(int i = 0; i < SERIAL_TIMEOUT && !Serial; i++) {
+  for (int i = 0; i < SERIAL_TIMEOUT && !Serial; i++) {
     continue;
     delay(1000);
   }
-  #endif
+#endif
 
   // SD Card Reader Setup (SPI)
   SPI.setSCK(SCK_PIN);
@@ -97,12 +97,12 @@ void setup() {
   // GPS Setup (Serial)
   Serial1.begin(9600);
 
-  // Data column headers. 
+  // Data column headers.
   dataFile.print("Time(ms), Pressure(Pa), Alt(m), AscentRate(m/s), TempIn(C), ");
   dataFile.println("GPSLat, GPSLong, GPSAlt, GPSSats");
 
   // RockBlock Setup (Yikes)
-  if(ROCKBLOCK_ENABLED) {
+  if (ROCKBLOCK_ENABLED) {
     IridiumSerial.begin(19200);
     DEBUG_PRINTLN("Starting rockblock serial");
     int err = modem.begin();
@@ -117,23 +117,18 @@ void setup() {
 }
 
 void loop() {
- // Serial.print("Check1");
   long loopTime = millis();
 
   if (ROCKBLOCK_ENABLED && (loopTime - lastTransmit > ROCKBLOCK_TRANSMIT_TIME)) {
-   // Serial.print("Check2");
     DEBUG_PRINTLN("Transmiting to ROCKBlock");
     char buf [200];
     dataStringBuffer.toCharArray(buf, sizeof(buf));
     modem.sendSBDText(buf);
     lastTransmit = loopTime;
   }
-  
   if (!ROCKBLOCK_ENABLED) {
-    Serial.println('y');
     readAndWrite();
   }
-  Serial.println("Check3");
 }
 
 // Reads from all of the sensors and outputs the data string
@@ -145,11 +140,11 @@ String readSensors() {
   // Timing
   long loopTime = millis();
   DEBUG_PRINTLN("Loop Time ");
-  DEBUG_PRINT(loopTime);
+  DEBUG_PRINTLN(loopTime);
   dataString += String(loopTime) + ", ";
 
   // BMP280 (Barometer + Thermometer) Input
-  DEBUG_PRINTLN("BMP280 Data");
+  DEBUG_PRINTLN("BMP280 stuff");
   double tempIn = bmp.readTemperature();
   double pressure = bmp.readPressure();
   double alt = bmp.readAltitude(LAUNCH_SITE_PRESSURE); // avg sea level pressure for hollister for past month
@@ -170,11 +165,11 @@ String readSensors() {
   DEBUG_PRINTLN(tempIn);
 
   // GPS Input
-  DEBUG_PRINTLN("GPS Data");
-  
+  DEBUG_PRINTLN("GPS Stuff");
+
   while (Serial1.available()) {
     char c = Serial1.read();
-    if(gps.encode(c)) {
+    if (gps.encode(c)) {
       DEBUG_PRINTLN("Printing the encoded data!");
     }
   }
@@ -183,7 +178,7 @@ String readSensors() {
   f_alt = gps.altitude.meters();
   sats = gps.satellites.value();
 
-  dataString += String(f_lat) + ", " + String(f_long) + ", ";
+  dataString += String(f_lat, 5) + ", " + String(f_long, 5) + ", ";
   dataString += String(f_alt) + ", " + String(sats) + ", ";
   DEBUG_PRINT("GPS Lat: ");
   DEBUG_PRINTLN(f_lat);
@@ -196,7 +191,7 @@ String readSensors() {
   DEBUG_PRINTLN("");
 
   dataStringBuffer = dataString;
-  return dataString;     
+  return dataString;
 }
 
 bool readAndWrite() {
@@ -214,18 +209,12 @@ bool readAndWrite() {
     DEBUG_PRINTLN("Flushing datalog.txt");
     dataFile.flush();
     lastFlush = loopTime;
-  }  
-  
+  }
+
   delay(50);
   return true;
 }
 
 bool ISBDCallback() {
-  Serial.println("isbd start");
-  if(!readAndWrite()) {
-    Serial.println("Read and write returned false");
-    return false;
-  }
-  return true;
-  Serial.println("isbd end");
+  return readAndWrite();
 }
